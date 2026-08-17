@@ -4,156 +4,68 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PiVerse Hub - Mobile Web3 App</title>
-    <!-- CSS Lightweight -->
     <style>
         :root { --bg-color: #0f172a; --card-bg: #1e293b; --text: #f8fafc; --accent: #8b5cf6; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg-color); color: var(--text); margin: 0; padding: 16px; }
+        body { font-family: -apple-system, sans-serif; background-color: var(--bg-color); color: var(--text); margin: 0; padding: 16px; }
         .header { text-align: center; margin-bottom: 24px; }
-        .btn { background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 12px; }
-        .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--text); }
-        .btn-success { background: #22c55e; }
+        .btn { background: var(--accent); color: white; border: none; padding: 14px 20px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 12px; font-size: 16px; }
+        .btn-pay { background: #22c55e; } /* Warna hijau untuk tombol bayar */
         .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
-        .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
-        .badge { background: #3b82f6; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
-        .stat-box { text-align: center; background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 8px; }
     </style>
-    <!-- Pi Network SDK Integration -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
 </head>
 <body>
 
     <div class="header">
         <h1>🌐 PiVerse Hub</h1>
-        <p>Lightweight Web3 & AI Marketplace Ecosystem</p>
     </div>
 
-    <!-- Statistik Komunitas / Total Pengguna -->
-    <div class="card">
-        <h3>Statistik Komunitas</h3>
-        <div class="stat-box">
-            <p style="margin: 0; font-size: 14px; color: #94a3b8;">Total Pengguna Terdaftar</p>
-            <h2 id="total-users" style="margin: 4px 0; color: #38bdf8;">0</h2>
-        </div>
-        <button class="btn btn-outline" style="margin-top: 10px;" onclick="loadTotalUsers()">🔄 Refresh Data</button>
-    </div>
-
-    <!-- Status Pengguna & Poin -->
     <div class="card" id="user-box">
         <h3>Status Pengguna</h3>
         <p><strong>Status:</strong> <span id="auth-status">Belum Terhubung</span></p>
-        <p><strong>Saldo Poin Reward:</strong> <span id="user-points">0</span> PTS</p>
+        
+        <!-- Tombol Hubungkan -->
         <button class="btn" id="btn-auth" onclick="authenticatePi()">Hubungkan Pi Wallet</button>
-        <button class="btn btn-success" id="btn-pay" onclick="testPayment()" style="display: none;">🧪 Jalankan Tes Pembayaran (Langkah 10)</button>
-    </div>
-
-    <!-- Katalog Aset & Lahan Virtual -->
-    <div class="card">
-        <h3>Katalog Aset & Lahan Virtual</h3>
-        <div class="grid" id="asset-list">
-            <div class="card" style="background:#0f172a;">
-                <span class="badge">Lahan Virtual</span>
-                <h4>Toko 3D UMKM Blitar Raya</h4>
-                <p>Status: Tersedia untuk Sewa</p>
-                <p><strong>Harga Sewa:</strong> 1 Test Pi / Bulan</p>
-                <button class="btn" style="margin-top: 8px;" onclick="testPayment()">Sewa Sekarang</button>
-            </div>
-            <div class="card" style="background:#0f172a;">
-                <span class="badge">AI Prompt & 3D</span>
-                <h4>Aset Character Wayang 3D</h4>
-                <p>Royalti Otomatis Kreator: 10%</p>
-                <p><strong>Harga Aset:</strong> 0.5 Test Pi</p>
-                <button class="btn" style="margin-top: 8px;" onclick="testPayment()">Beli Aset</button>
-            </div>
-        </div>
+        
+        <!-- Tombol Bayar (Awalnya disembunyikan/hidden) -->
+        <button class="btn btn-pay" id="btn-pay" onclick="testPayment()" style="display: none;">🧪 Lakukan Tes Pembayaran (Langkah 10)</button>
     </div>
 
     <script>
-        // Inisialisasi Pi SDK
         const Pi = window.Pi;
         if (typeof Pi !== 'undefined') {
             Pi.init({ version: "2.0", sandbox: true });
         }
 
-        window.onload = function() {
-            loadTotalUsers();
-        };
-
-        async function loadTotalUsers() {
-            try {
-                const res = await fetch('/api/stats');
-                const data = await res.json();
-                if (data.total !== undefined) {
-                    document.getElementById('total-users').innerText = data.total;
-                }
-            } catch (err) {
-                console.error("Gagal mengambil total pengguna:", err);
-            }
-        }
-
         async function authenticatePi() {
-            if (typeof Pi === 'undefined') {
-                alert("Buka aplikasi ini dari dalam Pi Browser.");
-                return;
-            }
             try {
                 const scopes = ['username', 'payments'];
                 const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-                const username = auth.user.username;
-
-                document.getElementById('auth-status').innerText = "@" + username;
-                document.getElementById('user-points').innerText = "100";
                 
-                // Tampilkan tombol tes pembayaran setelah autentikasi berhasil
+                // Update UI: Tampilkan user dan sembunyikan tombol login, tampilkan tombol bayar
+                document.getElementById('auth-status').innerText = "@" + auth.user.username;
+                document.getElementById('btn-auth').style.display = 'none';
                 document.getElementById('btn-pay').style.display = 'block';
-
-                await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: username })
-                });
-
-                loadTotalUsers();
             } catch (err) {
                 console.error(err);
-                alert("Gagal terhubung dengan Pi Wallet.");
+                alert("Gagal terhubung: " + err);
             }
         }
 
-        // Fungsi Uji Pembayaran untuk Menuntaskan Langkah 10 Developer Portal
         function testPayment() {
-            if (typeof Pi === 'undefined') {
-                alert("Buka di Pi Browser untuk melakukan transaksi.");
-                return;
-            }
-
-            const paymentData = {
+            Pi.createPayment({
                 amount: 1,
-                memo: "Uji Pembayaran Langkah 10 PiVerse Hub",
-                metadata: { type: "testnet_approval" }
-            };
-
-            const callbacks = {
-                onReadyForServerApproval: function(paymentId) {
-                    console.log("Ready for server approval, paymentId:", paymentId);
-                },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("Ready for server completion, txid:", txid);
-                    alert("Transaksi Testnet Berhasil!");
-                },
-                onCancel: function(paymentId) {
-                    console.log("Pembayaran dibatalkan:", paymentId);
-                },
-                onError: function(error, payment) {
-                    console.error("Error pembayaran:", error);
-                }
-            };
-
-            Pi.createPayment(paymentData, callbacks);
+                memo: "Uji Coba Langkah 10",
+                metadata: { type: "test" }
+            }, {
+                onReadyForServerApproval: (paymentId) => console.log("ID:", paymentId),
+                onReadyForServerCompletion: (paymentId, txid) => alert("Pembayaran Berhasil! Sekarang kembali ke Developer Portal."),
+                onCancel: (paymentId) => alert("Dibatalkan"),
+                onError: (error) => alert("Error: " + error)
+            });
         }
 
-        function onIncompletePaymentFound(payment) {
-            console.log("Pembayaran tertunda ditemukan:", payment);
-        }
+        function onIncompletePaymentFound(payment) { console.log("Payment found"); }
     </script>
 </body>
 </html>
