@@ -11,6 +11,7 @@
         .header { text-align: center; margin-bottom: 24px; }
         .btn { background: var(--accent); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; margin-bottom: 12px; }
         .btn-outline { background: transparent; border: 1px solid var(--accent); color: var(--text); }
+        .btn-success { background: #22c55e; }
         .card { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #334155; }
         .grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
         .badge { background: #3b82f6; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
@@ -41,7 +42,8 @@
         <h3>Status Pengguna</h3>
         <p><strong>Status:</strong> <span id="auth-status">Belum Terhubung</span></p>
         <p><strong>Saldo Poin Reward:</strong> <span id="user-points">0</span> PTS</p>
-        <button class="btn" onclick="authenticatePi()">Hubungkan Pi Wallet</button>
+        <button class="btn" id="btn-auth" onclick="authenticatePi()">Hubungkan Pi Wallet</button>
+        <button class="btn btn-success" id="btn-pay" onclick="testPayment()" style="display: none;">🧪 Jalankan Tes Pembayaran (Langkah 10)</button>
     </div>
 
     <!-- Katalog Aset & Lahan Virtual -->
@@ -52,13 +54,15 @@
                 <span class="badge">Lahan Virtual</span>
                 <h4>Toko 3D UMKM Blitar Raya</h4>
                 <p>Status: Tersedia untuk Sewa</p>
-                <p><strong>Harga Sewa:</strong> 50 Poin / Bulan</p>
+                <p><strong>Harga Sewa:</strong> 1 Test Pi / Bulan</p>
+                <button class="btn" style="margin-top: 8px;" onclick="testPayment()">Sewa Sekarang</button>
             </div>
             <div class="card" style="background:#0f172a;">
                 <span class="badge">AI Prompt & 3D</span>
                 <h4>Aset Character Wayang 3D</h4>
                 <p>Royalti Otomatis Kreator: 10%</p>
-                <p><strong>Harga Aset:</strong> 20 Poin</p>
+                <p><strong>Harga Aset:</strong> 0.5 Test Pi</p>
+                <button class="btn" style="margin-top: 8px;" onclick="testPayment()">Beli Aset</button>
             </div>
         </div>
     </div>
@@ -70,7 +74,6 @@
             Pi.init({ version: "2.0", sandbox: true });
         }
 
-        // Ambil Total Pengguna saat halaman pertama kali dibuka
         window.onload = function() {
             loadTotalUsers();
         };
@@ -89,7 +92,7 @@
 
         async function authenticatePi() {
             if (typeof Pi === 'undefined') {
-                alert("Buka aplikasi ini dari dalam Pi Browser untuk login.");
+                alert("Buka aplikasi ini dari dalam Pi Browser.");
                 return;
             }
             try {
@@ -97,22 +100,55 @@
                 const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
                 const username = auth.user.username;
 
-                // Simpan user baru ke database via API
+                document.getElementById('auth-status').innerText = "@" + username;
+                document.getElementById('user-points').innerText = "100";
+                
+                // Tampilkan tombol tes pembayaran setelah autentikasi berhasil
+                document.getElementById('btn-pay').style.display = 'block';
+
                 await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: username })
                 });
 
-                document.getElementById('auth-status').innerText = "@" + username;
-                document.getElementById('user-points').innerText = "100";
-                
-                // Perbarui jumlah pengguna setelah pendaftaran
                 loadTotalUsers();
             } catch (err) {
                 console.error(err);
-                alert("Gagal terhubung dengan akun Pi.");
+                alert("Gagal terhubung dengan Pi Wallet.");
             }
+        }
+
+        // Fungsi Uji Pembayaran untuk Menuntaskan Langkah 10 Developer Portal
+        function testPayment() {
+            if (typeof Pi === 'undefined') {
+                alert("Buka di Pi Browser untuk melakukan transaksi.");
+                return;
+            }
+
+            const paymentData = {
+                amount: 1,
+                memo: "Uji Pembayaran Langkah 10 PiVerse Hub",
+                metadata: { type: "testnet_approval" }
+            };
+
+            const callbacks = {
+                onReadyForServerApproval: function(paymentId) {
+                    console.log("Ready for server approval, paymentId:", paymentId);
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    console.log("Ready for server completion, txid:", txid);
+                    alert("Transaksi Testnet Berhasil!");
+                },
+                onCancel: function(paymentId) {
+                    console.log("Pembayaran dibatalkan:", paymentId);
+                },
+                onError: function(error, payment) {
+                    console.error("Error pembayaran:", error);
+                }
+            };
+
+            Pi.createPayment(paymentData, callbacks);
         }
 
         function onIncompletePaymentFound(payment) {
