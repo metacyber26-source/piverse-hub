@@ -3,74 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PiVerse Hub - Marketplace</title>
-    <!-- 1. Memuat SDK Pi Network -->
+    <title>PiVerse Hub</title>
+    <!-- Memuat SDK Pi -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <style>
-        body { font-family: sans-serif; padding: 20px; text-align: center; }
-        button { padding: 15px 30px; font-size: 16px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; }
-    </style>
 </head>
 <body>
 
     <h1>PiVerse Hub</h1>
-    <p>Status: <span id="user-status">Memuat...</span></p>
+    <p>Status: <span id="user-status">Menghubungkan...</span></p>
     
     <button id="pay-btn" onclick="executeTestPayment()">Jalankan Tes Pembayaran</button>
 
     <script>
-        // 2. Inisialisasi SDK
-        const Pi = window.Pi;
-        Pi.init({ version: "2.0", sandbox: true });
-
-        // Autentikasi Pengguna
-        Pi.authenticate(['username'], {
-            onSuccess: (user) => {
-                document.getElementById('user-status').innerText = "@" + user.username;
-            },
-            onFailure: () => {
-                document.getElementById('user-status').innerText = "Gagal Login";
-            },
-            onIncomplete: () => {
-                document.getElementById('user-status').innerText = "Login tidak lengkap";
+        // Gunakan window.addEventListener untuk memastikan SDK sudah siap
+        window.addEventListener('load', () => {
+            const Pi = window.Pi;
+            if (!Pi) {
+                document.getElementById('user-status').innerText = "SDK Gagal Dimuat";
+                return;
             }
+
+            Pi.init({ version: "2.0", sandbox: true });
+
+            Pi.authenticate(['username'], {
+                onSuccess: (user) => {
+                    document.getElementById('user-status').innerText = "Halo, @" + user.username;
+                },
+                onFailure: () => {
+                    document.getElementById('user-status').innerText = "Gagal Login";
+                },
+                onIncomplete: () => {
+                    document.getElementById('user-status').innerText = "Login Incomplete";
+                }
+            });
         });
 
-        // 3. Fungsi Pembayaran
         function executeTestPayment() {
+            // Cek apakah Pi sudah terinisialisasi
+            if (!window.Pi) return alert("SDK belum siap");
+
             const paymentData = {
-                amount: 1, // Jumlah Pi
-                memo: "Verifikasi Step 10",
-                metadata: { type: "testnet" }
+                amount: 1,
+                memo: "Test Payment",
+                metadata: { type: "test" }
             };
 
             const callbacks = {
-                onReadyForServerApproval: function(paymentId) {
-                    console.log("Menunggu persetujuan server:", paymentId);
-                    
-                    // PENTING: Anda harus mengirim paymentId ke backend Anda
-                    // Di sini kita simulasi fetch ke endpoint backend
-                    fetch('/api/approve-payment', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: paymentId })
-                    })
-                    .then(res => console.log("Request approval terkirim"))
-                    .catch(err => console.error("Error backend:", err));
+                onReadyForServerApproval: (paymentId) => {
+                    alert("Siap Approve. ID: " + paymentId);
+                    // Jika Anda tidak punya backend, ini akan berhenti di sini
                 },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("Pembayaran selesai:", txid);
-                    alert("Pembayaran Berhasil! TXID: " + txid);
+                onReadyForServerCompletion: (paymentId, txid) => {
+                    alert("Sukses! TXID: " + txid);
                 },
-                onCancel: function(paymentId) {
-                    alert("Pembayaran dibatalkan.");
-                },
-                onError: function(error, payment) {
-                    alert("Error SDK: " + JSON.stringify(error));
-                }
+                onCancel: () => alert("Dibatalkan"),
+                onError: (err) => alert("Error: " + err)
             };
 
-            Pi.createPayment(paymentData, callbacks);
+            window.Pi.createPayment(paymentData, callbacks);
         }
     </script>
 </body>
