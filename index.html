@@ -4,63 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PiVerse Hub</title>
-    <!-- Memuat SDK Pi -->
+    <!-- SDK Resmi Pi Network -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .card {
+            background-color: #1e293b;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            margin-top: 16px;
+            background-color: #22c55e;
+            color: #ffffff;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:disabled {
+            background-color: #475569;
+            cursor: not-allowed;
+        }
+        #status {
+            font-weight: bold;
+            color: #38bdf8;
+        }
+    </style>
 </head>
 <body>
 
-    <h1>PiVerse Hub</h1>
-    <p>Status: <span id="user-status">Menghubungkan...</span></p>
-    
-    <button id="pay-btn" onclick="executeTestPayment()">Jalankan Tes Pembayaran</button>
+    <div class="card">
+        <h2>PiVerse Hub</h2>
+        <p>Status: <span id="status">Menginisialisasi SDK...</span></p>
+        
+        <button id="btn-pay" onclick="executeTestPayment()" disabled>
+            Jalankan Tes Pembayaran (Langkah 10)
+        </button>
+    </div>
 
     <script>
-        // Gunakan window.addEventListener untuk memastikan SDK sudah siap
-        window.addEventListener('load', () => {
-            const Pi = window.Pi;
-            if (!Pi) {
-                document.getElementById('user-status').innerText = "SDK Gagal Dimuat";
+        let currentUser = null;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const statusEl = document.getElementById('status');
+            const btnPay = document.getElementById('btn-pay');
+
+            // Cek ketersediaan SDK
+            if (typeof Pi === 'undefined') {
+                statusEl.innerText = "Gagal memuat SDK. Buka via Pi Browser.";
                 return;
             }
 
-            Pi.init({ version: "2.0", sandbox: true });
+            try {
+                // Inisialisasi Sandbox Mode
+                Pi.init({ version: "2.0", sandbox: true });
+                statusEl.innerText = "Menghubungkan ke Pi Network...";
 
-            Pi.authenticate(['username'], {
-                onSuccess: (user) => {
-                    document.getElementById('user-status').innerText = "Halo, @" + user.username;
-                },
-                onFailure: () => {
-                    document.getElementById('user-status').innerText = "Gagal Login";
-                },
-                onIncomplete: () => {
-                    document.getElementById('user-status').innerText = "Login Incomplete";
-                }
-            });
+                // Proses Otentikasi
+                Pi.authenticate(['username', 'payments'], {
+                    onIncompletePaymentFound: (payment) => {
+                        console.log("Incomplete payment found:", payment);
+                    }
+                }).then((auth) => {
+                    currentUser = auth.user;
+                    statusEl.innerText = "@" + currentUser.username;
+                    btnPay.disabled = false;
+                }).catch((error) => {
+                    console.error("Auth error:", error);
+                    statusEl.innerText = "Gagal Login / Domain Belum Diverifikasi";
+                });
+
+            } catch (err) {
+                console.error("Init error:", err);
+                statusEl.innerText = "Gagal Inisialisasi SDK";
+            }
         });
 
         function executeTestPayment() {
-            // Cek apakah Pi sudah terinisialisasi
-            if (!window.Pi) return alert("SDK belum siap");
+            if (!currentUser) return alert("Pengguna belum terautentikasi.");
 
             const paymentData = {
                 amount: 1,
-                memo: "Test Payment",
-                metadata: { type: "test" }
+                memo: "Tes Pembayaran Langkah 10",
+                metadata: { type: "step_10_test" }
             };
 
             const callbacks = {
-                onReadyForServerApproval: (paymentId) => {
-                    alert("Siap Approve. ID: " + paymentId);
-                    // Jika Anda tidak punya backend, ini akan berhenti di sini
+                onReadyForServerApproval: function(paymentId) {
+                    console.log("Ready for approval, paymentId:", paymentId);
+                    alert("Menyetujui Transaksi (Payment ID: " + paymentId + ")...");
                 },
-                onReadyForServerCompletion: (paymentId, txid) => {
-                    alert("Sukses! TXID: " + txid);
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    alert("Pembayaran Berhasil!\nTXID: " + txid);
                 },
-                onCancel: () => alert("Dibatalkan"),
-                onError: (err) => alert("Error: " + err)
+                onCancel: function(paymentId) {
+                    alert("Pembayaran dibatalkan.");
+                },
+                onError: function(error, payment) {
+                    alert("Terjadi Kesalahan: " + (error.message || JSON.stringify(error)));
+                }
             };
 
-            window.Pi.createPayment(paymentData, callbacks);
+            Pi.createPayment(paymentData, callbacks);
         }
     </script>
 </body>
